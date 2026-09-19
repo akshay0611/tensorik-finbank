@@ -30,7 +30,7 @@ There is no backend. All accounts, transactions, cards, beneficiaries, and trans
 | Styling   | Tailwind CSS 4                    |
 | Charts    | Recharts                          |
 | Icons     | lucide-react                      |
-| Package   | pnpm (v12.3.4)                    |
+| Package   | pnpm                          |
 
 ## Getting Started
 
@@ -44,7 +44,7 @@ pnpm dev
 # open http://localhost:3000
 ```
 
-If `pnpm` fails on this repo, run through the local binaries instead:
+If pnpm is not installed, use `npm install -g pnpm` or run Next.js directly through the local binary:
 
 ```bash
 node_modules/.bin/next dev
