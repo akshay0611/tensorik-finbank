@@ -6,4 +6,4 @@
 # Common ignores
 node_modules
 .next/
-.DS_Store
+.DS_Storetsconfig.tsbuildinfo
