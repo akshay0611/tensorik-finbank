@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CalendarClock, Check, ChevronRight, CreditCard, Edit3, Pause, Play, Plus, Search, Send, Trash2, Users, X } from 'lucide-react'
 import { accounts as seedAccounts, beneficiaries as seedBeneficiaries, cards as seedCards, formatINR, scheduledPayments as seedScheduled, transactions as seedTransactions, transfers as seedTransfers, type Beneficiary, type Card, type ScheduledPayment, type Transaction, type Transfer } from '@/lib/mock-data'
@@ -11,24 +11,35 @@ import { Card as Surface, CardContent, CardHeader, CardTitle } from '@/component
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
+function useStoredState<T>(key: string, initial: T): [T, (value: T | ((prev: T) => T)) => void] {
+  const [value, setValue] = useState<T>(() => {
+    if (typeof window === 'undefined') return initial
+    try { const saved = window.localStorage.getItem(key); return saved ? JSON.parse(saved) : initial } catch { return initial }
+  })
+  useEffect(() => {
+    try { window.localStorage.setItem(key, JSON.stringify(value)) } catch {}
+  }, [key, value])
+  return [value, setValue]
+}
+
 type DemoAccount = typeof seedAccounts[number]
 type BankState = { accounts: DemoAccount[]; transactions: Transaction[]; cards: Card[]; beneficiaries: Beneficiary[]; transfers: Transfer[]; scheduled: ScheduledPayment[]; toast: (message: string) => void; updateCards: (cards: Card[]) => void; updateBeneficiaries: (items: Beneficiary[]) => void; updateScheduled: (items: ScheduledPayment[]) => void; updateTransactions: (items: Transaction[]) => void; completeTransfer: (data: { accountId: string; beneficiaryId: string; amount: number; purpose: string }) => string }
 const BankContext = createContext<BankState | null>(null)
 export function BankProvider({ children }: { children: React.ReactNode }) {
   const [accountState, setAccountState] = useState(seedAccounts)
   const [transactionState, setTransactionState] = useState(seedTransactions)
-  const [cardState, setCardState] = useState(seedCards)
-  const [beneficiaryState, setBeneficiaryState] = useState(seedBeneficiaries)
+  const [cardState, setCardState] = useStoredState<Card[]>('tensorik-cards', seedCards)
+  const [beneficiaryState, setBeneficiaryState] = useStoredState<Beneficiary[]>('tensorik-beneficiaries', seedBeneficiaries)
   const [transferState, setTransferState] = useState(seedTransfers)
-  const [scheduledState, setScheduledState] = useState(seedScheduled)
+  const [scheduledState, setScheduledState] = useStoredState<ScheduledPayment[]>('tensorik-scheduled', seedScheduled)
   const [toastMessage, setToastMessage] = useState('')
   const toast = (message: string) => { setToastMessage(message); window.setTimeout(() => setToastMessage(''), 2600) }
   const completeTransfer = (data: { accountId: string; beneficiaryId: string; amount: number; purpose: string }) => {
-    const id = `tr-${Date.now()}`; const reference = `TXN-20260919-${String(Math.floor(1000 + Math.random() * 8999))}`; const account = accountState.find(item => item.id === data.accountId); const beneficiary = beneficiaryState.find(item => item.id === data.beneficiaryId)
+    const id = `tr-${Date.now()}`; const now = new Date(); const dd = String(now.getDate()).padStart(2, '0'); const mm = String(now.getMonth() + 1).padStart(2, '0'); const yyyy = now.getFullYear(); const dateStr = `${dd} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][now.getMonth()]} ${yyyy}`; const sortDate = `${yyyy}-${mm}-${dd}`; const reference = `TXN-${sortDate.replace(/-/g, '')}-${String(Math.floor(1000 + Math.random() * 8999))}`; const account = accountState.find(item => item.id === data.accountId); const beneficiary = beneficiaryState.find(item => item.id === data.beneficiaryId)
     if (!account || !beneficiary) return reference
     setAccountState(items => items.map(item => item.id === data.accountId ? { ...item, balance: item.balance - data.amount, availableBalance: item.availableBalance - data.amount } : item))
-    const transaction: Transaction = { id, date: '19 Sep 2026', sortDate: '2026-09-19', time: 'Just now', description: `Transfer to ${beneficiary.name}`, merchant: beneficiary.name, category: 'Transfer', accountId: data.accountId, amount: data.amount, type: 'debit', status: 'Completed', reference, details: data.purpose || 'Personal transfer' }
-    setTransactionState(items => [transaction, ...items]); setTransferState(items => [{ id, beneficiaryId: data.beneficiaryId, beneficiaryName: beneficiary.name, accountId: data.accountId, amount: data.amount, purpose: data.purpose, status: 'Completed', date: '19 Sep 2026', reference }, ...items]); toast('Transfer successful.')
+    const transaction: Transaction = { id, date: dateStr, sortDate, time: 'Just now', description: `Transfer to ${beneficiary.name}`, merchant: beneficiary.name, category: 'Transfer', accountId: data.accountId, amount: data.amount, type: 'debit', status: 'Completed', reference, details: data.purpose || 'Personal transfer' }
+    setTransactionState(items => [transaction, ...items]); setTransferState(items => [{ id, beneficiaryId: data.beneficiaryId, beneficiaryName: beneficiary.name, accountId: data.accountId, amount: data.amount, purpose: data.purpose, status: 'Completed', date: dateStr, reference }, ...items]); toast('Transfer successful.')
     return reference
   }
   return <BankContext.Provider value={{ accounts: accountState, transactions: transactionState, cards: cardState, beneficiaries: beneficiaryState, transfers: transferState, scheduled: scheduledState, toast, updateCards: setCardState, updateBeneficiaries: setBeneficiaryState, updateScheduled: setScheduledState, updateTransactions: setTransactionState, completeTransfer }}>{children}{toastMessage && <div role="status" className="fixed bottom-20 right-5 z-[60] rounded-lg bg-[#173a66] px-4 py-3 text-xs font-medium text-white shadow-xl md:bottom-6">{toastMessage}</div>}</BankContext.Provider>
