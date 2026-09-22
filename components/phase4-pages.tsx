@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 const chartColors = ['#315f91', '#6d8da6', '#98aebb', '#b7c7ce', '#d8e0e3', '#4f7891', '#769bab', '#c3d0d5']
 const expenseCategories = ['Food', 'Shopping', 'Bills', 'Travel', 'Entertainment', 'Healthcare', 'Utilities', 'Other']
 const monthNames = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep']
-const periodMonths: Record<string, number> = { '1M': 1, '3M': 3, '6M': 6, '1Y': 6 }
+const periodMonths: Record<string, number> = { '1M': 1, '3M': 3, '6M': 6, '1Y': 12 }
 const monthIndex = (date: string) => Math.max(0, Math.min(5, Number(date.slice(5, 7)) - 4))
 const isExpense = (t: Transaction) => t.type === 'debit' && t.status !== 'Failed'
 const monthLabel = (t: Transaction) => monthNames[monthIndex(t.sortDate)] || 'Sep'
@@ -27,7 +27,7 @@ export function AnalyticsPage() {
   const { accounts, transactions } = useBank(); const [period, setPeriod] = useState('6M'); const [accountFilter, setAccountFilter] = useState('All Accounts'); const [categoryFilter, setCategoryFilter] = useState('All Categories')
   const filtered = useMemo(() => transactions.filter(t => (accountFilter === 'All Accounts' || t.accountId === accounts.find(a => a.name === accountFilter)?.id) && (categoryFilter === 'All Categories' || t.category === categoryFilter)), [accountFilter, categoryFilter])
   const months = periodMonths[period]
-  const periodTransactions = filtered.filter(t => monthIndex(t.sortDate) >= 6 - months)
+  const periodTransactions = filtered.filter(t => monthIndex(t.sortDate) >= Math.max(0, 6 - months))
   const income = periodTransactions.filter(t => t.type === 'credit').reduce((sum, t) => sum + t.amount, 0)
   const expenses = periodTransactions.filter(isExpense).reduce((sum, t) => sum + t.amount, 0)
   const categoriesData = expenseCategories.map((name, index) => ({ name, amount: periodTransactions.filter(t => isExpense(t) && (t.category === name || (name === 'Other' && !expenseCategories.includes(t.category)))).reduce((sum, t) => sum + t.amount, 0), color: chartColors[index] })).filter(item => item.amount > 0)
